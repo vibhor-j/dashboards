@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPO Dashboard</title>
+    <script src="script.js"></script>
+    <script>
+        async function fetchSMEData() {
+            const url = 'https://www.chittorgarh.com/ipo/ipo_dashboard.asp?a=sme';
+            const text = await makeProxyCall(url, 'list_sme', hours_9);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const rows = doc.querySelectorAll('#mainlineIpoTable table tbody tr');
+            rows.forEach(row => {
+                const column = row.querySelectorAll('td');
+                const status = column[3].textContent;
+                if (status === "Current") {
+                    const ipoLink = column[0].querySelector('a').href;
+                    const iframe = document.createElement('iframe');
+                    iframe.src = `sme_ipo_details.html?link=${removeDomainFrom(ipoLink)}`;
+                    iframe.width = '100%';
+                    iframe.height = '155px'; // Adjust the height as needed
+                    iframe.style = 'float:left';
+                    document.getElementById('sme-ipo-container').prepend(iframe);
+                }
+            });
+        }
+        async function fetchMainData() {
+            const url = 'https://www.chittorgarh.com/ipo/ipo_dashboard.asp';
+            const text = await makeProxyCall(url, 'list', hours_9);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const rows = doc.querySelectorAll('#mainlineIpoTable table tbody tr');
+            rows.forEach(row => {
+                const column = row.querySelectorAll('td');
+                const status = column[3].textContent;
+                if (status === "Current") {
+                    const ipoLink = column[0].querySelector('a').href;
+                    loadIframe(removeDomainFrom(ipoLink));
+                }
+            });
+        }
+
+        function loadIframe(ipoLink) {
+            const iframe = document.createElement('iframe');
+            iframe.src = `ipo_details.html?link=${ipoLink}`;
+            iframe.width = '100%';
+            iframe.height = '155px'; // Adjust the height as needed
+            iframe.style = 'float:left';
+            document.getElementById('ipo-container').prepend(iframe);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchMainData();
+            fetchSMEData();
+        });
+    </script>
+    <style>
+        #container {
+            width: 47%;
+            float: left;
+            margin-right: 2.5%;
+        }
+    </style>
+</head>
+<body>
+<h1>IPO Dashboard</h1>
+<div id="container">
+    <h3>Main Line IPOs</h3>
+    <div id="ipo-container"></div>
+</div>
+
+<div id="container">
+    <h3>SME IPOs</h3>
+    <div id="sme-ipo-container"></div>
+</div>
+</body>
+</html>

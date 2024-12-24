@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="script.js"></script>
+    <style>
+        table {
+            width: 100%;
+        }
+        td {
+            text-align: right;
+        }
+        .refresh {
+
+        }
+        /*a {*/
+        /*    white-space: nowrap;*/
+        /*    overflow: hidden;*/
+        /*    text-overflow: ellipsis;*/
+        /*    !*max-width: 200px; !* Adjust the width as needed *!*!*/
+        /*    display: inline-block;*/
+        /*    !*vertical-align: bottom;*!*/
+        /*}*/
+    </style>
+    <script>
+        async function fetchGMP(url, ipoId) {
+            const text = await makeProxyCall(url, `${ipoId}_GMP`, hours_9);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const gmp = doc.querySelector('td[data-title="Estimated Listing Price"]').textContent;
+            document.getElementById('ipoGMP').textContent = gmp;
+        }
+
+        function removeSession(ipoId) {
+            sessionStorage.removeItem(`cache_${ipoId}_Allotment`);
+            sessionStorage.removeItem(`cache_expiry_${ipoId}_Allotment`);
+        }
+
+        async function fetchSubscriptionData(ipoId, retailShares, sHNIShares) {
+            const url = `https://www.chittorgarh.net/documents/subscription/${ipoId}/details.html?abc=${getPaddedMin()}`
+            document.getElementById('allotmentLink').innerHTML = `<a href='${url}'>Allotment %</a><a href='javascript: removeSession(${ipoId});'> X</a>`;
+            const text = await makeProxyCall(url, `${ipoId}_Allotment`, hours_9);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            doc.querySelectorAll('tr').forEach(row => {
+                const columns = row.querySelectorAll('td');
+                if (columns.length === 0) {
+                    return;
+                }
+                let sharesOffered = columns[2].textContent.replaceAll(',', '');
+                let sharesBidded = columns[3].textContent.replaceAll(',', '');
+                let allotment = Math.min((sharesOffered * 100) / sharesBidded, 100);
+                let oneIn = (100/allotment).toFixed(0);
+                for (var i=1; i<8; i++) {
+                    let x = (1-((1-allotment/100)**i))*100;
+                    if (columns[0].textContent.includes("Retail")) {
+                        document.querySelector(`#retail #allotment${i}`).innerHTML = `<span>${x.toFixed(0)}</span> %`;
+                        if (allotment > 10) {
+                            document.querySelector(`#retail #allotment${i}`).style.backgroundColor = 'lightgreen';
+                        }
+                        document.querySelector('#retail #oneIn').textContent = oneIn;
+                    }
+                    if (columns[0].textContent.includes("NII")) {
+                        let allotment = Math.min(((sharesOffered/retailShares) * 100 / (sharesBidded/sHNIShares)), 100);
+                        let oneIn = (100/allotment).toFixed(0);
+                        x = (1-((1-allotment/100)**i))*100;
+                        document.querySelector(`#sHNI #allotment${i}`).innerHTML = `<span>${x.toFixed(0)}</span> %`;
+                        if (x > threshold) {
+                            document.querySelector(`#sHNI #allotment${i}`).style.backgroundColor = 'lightgreen';
+                        }
+                        document.querySelector('#sHNI #oneIn').textContent = oneIn;
+                    }
+                }
+            });
+        }
+
+        async function fetchData(ipoLink) {
+            const ipoId = ipoLink.match(/(\d{4})\/$/)[1];
+            const url = `https://www.chittorgarh.com${ipoLink}`;
+            const text = await makeProxyCall(url, ipoId, hours_9);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const ipoName = doc.querySelector('h1').textContent;
+            const tables = doc.querySelectorAll('table');
+            const table = tables[1];
+            document.getElementById('ipoName').innerHTML = `<a href='${url}'>${ipoName}</a>`;
+            document.getElementById('ipoDate').innerHTML = table.querySelectorAll('tr')[0].querySelectorAll('td')[1].textContent.replaceAll(`, ${currentYear}`, '');
+
+            const table5 = getApplicationTable(tables);
+
+            const price = table.querySelectorAll('tr')[3].querySelectorAll('td')[1].textContent.match(/(\d+)\D*$/)[1];
+            document.querySelectorAll('#ipoPrice').forEach(ele => ele.textContent = price);
+            // const dates = table.querySelectorAll('tr')[0].querySelectorAll('td')[1].textContent.replaceAll(`, ${currentYear}`, '');
+            // document.getElementById('ipoDates').textContent = dates;
+            // console.log(table);
+            // console.log(table5);
+            const sharesRows = table5.querySelectorAll('tr');
+            const retailShares = sharesRows[1].querySelectorAll('td')[2].textContent;
+            document.querySelector('#retail #shares').textContent = retailShares;
+            const sHNIShares = sharesRows[3].querySelectorAll('td')[2].textContent;
+            document.querySelector('#sHNI #shares').textContent = sHNIShares;
+            document.querySelector('#retail #price').textContent = sharesRows[1].querySelectorAll('td')[3].textContent;
+            document.querySelector('#sHNI #price').textContent = sharesRows[3].querySelectorAll('td')[3].textContent;
+
+            const gmpURL = doc.querySelector('#main a[title="IPO GMP"]').href;
+            await fetchGMP(gmpURL, ipoId);
+            await fetchSubscriptionData(ipoId, retailShares.replaceAll(',',''), sHNIShares.replaceAll(',',''));
+            // const rows = doc.querySelectorAll('#mainlineIpoTable table tbody tr');
+            // rows.forEach(row => {
+            //     const column = row.querySelectorAll('td');
+            //     const status = column[3].textContent;
+            //     if (status === "Current") {
+            //         // const ipoId = column[0].querySelector('a').href.match(/(\d{4})\/$/)[1];
+            //         const ipoLink = column[0].querySelector('a').href;
+            //         const ipoName = column[0].textContent;
+            //         const startDate = column[1].textContent;
+            //         const endDate = column[2].textContent;
+            //         loadIframe(ipoLink);
+            //     }
+            // });
+            // document.getElementById('test-container').innerHTML = table.outerHTML;
+        }
+
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const ipoLink = getQueryParam('link');
+            fetchData(ipoLink);
+        });
+    </script>
+</head>
+<body>
+<!--<p>Passed Number: <span id="number-display"></span></p>-->
+<table id="ipo-table" border="1">
+    <thead>
+    <tr>
+        <th colspan="5" id="ipoName"></th>
+        <th colspan="4" id="ipoDate"></th>
+        <th id="ipoGMP">GMP</th>
+        <!--        <th colspan="1" id="ipoDates">Start-End</th>-->
+    </tr>
+    <tr>
+        <th>Category</th>
+        <th>Application</th>
+        <th colspan="7" id="allotmentLink"></th>
+        <th>1 IN</th>
+    </tr>
+    </thead>
+    <tbody>
+        <tr id="retail">
+            <th>Retail</th>
+            <td><span id="shares"></span> X <span id="ipoPrice"></span> = <span id="price"></span></td>
+            <td id="allotment1"></td>
+            <td id="allotment2"></td>
+            <td id="allotment3"></td>
+            <td id="allotment4"></td>
+            <td id="allotment5"></td>
+            <td id="allotment6"></td>
+            <td id="allotment7"></td>
+            <td id="oneIn"></td>
+        </tr>
+        <tr id="sHNI">
+            <th>sHNI</th>
+            <td><span id="shares"></span><span> X </span><span id="ipoPrice"></span><span> = </span><span id="price"></span></td>
+            <td id="allotment1"></td>
+            <td id="allotment2"></td>
+            <td id="allotment3"></td>
+            <td id="allotment4"></td>
+            <td id="allotment5"></td>
+            <td id="allotment6"></td>
+            <td id="allotment7"></td>
+            <td id="oneIn"></td>
+        </tr>
+    </tbody>
+</table>
+</body>
+</html>

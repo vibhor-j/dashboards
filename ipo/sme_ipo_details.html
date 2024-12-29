@@ -39,7 +39,7 @@
 
         async function fetchSubscriptionData(ipoId, retailShares, sHNIShares) {
             const url = `https://www.chittorgarh.net/documents/subscription/${ipoId}/details.html?abc=${getPaddedMin()}`
-            document.getElementById('allotmentLink').innerHTML = `<a href='${url}'>Allotment %</a><a href='javascript: removeSession(${ipoId});'> X</a>`;
+            document.getElementById('allotmentLink').innerHTML = `<a href='${url}'>Allotment</a> % <a href='javascript: removeSession(${ipoId});'> X</a>`;
             const text = await makeProxyCall(url, `${ipoId}_Allotment`, hours_9);
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');

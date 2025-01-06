@@ -112,7 +112,7 @@
 
             const gmpURL = doc.querySelector('#main a[title="IPO GMP"]').href;
             await fetchGMP(gmpURL, ipoId);
-            await fetchSubscriptionData(ipoId, sHNIShares, bHNIShares.replaceAll(',',''));
+            await fetchSubscriptionData(ipoId, sHNIShares.replaceAll(',',''), bHNIShares.replaceAll(',',''));
             // const rows = doc.querySelectorAll('#mainlineIpoTable table tbody tr');
             // rows.forEach(row => {
             //     const column = row.querySelectorAll('td');
